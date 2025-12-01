@@ -91,6 +91,41 @@ ciudades = PAISES_CONFIG.get(pais_seleccionado, PAISES_CONFIG['Argentina'])
 st.sidebar.info(f"📊 Se consultarán {len(ciudades)} ciudades de {pais_seleccionado}")
 
 # ============================================
+# BÚSQUEDA DE CIUDAD ESPECÍFICA
+# ============================================
+st.sidebar.markdown("---")
+st.sidebar.header("🔍 Búsqueda Personalizada")
+
+ciudad_personalizada = st.sidebar.text_input(
+    "Buscar ciudad específica",
+    placeholder="Ej: Madrid, ES o New York, US",
+    help="Ingresa el nombre de la ciudad y código de país (ej: 'Madrid, ES' o 'New York, US')"
+)
+
+buscar_ciudad = st.sidebar.button("🔍 Buscar Ciudad", use_container_width=True)
+
+ciudad_personalizada_data = None
+ciudad_personalizada_forecast = None
+ciudad_personalizada_pronosticos = {}
+
+if buscar_ciudad and ciudad_personalizada:
+    with st.sidebar:
+        with st.spinner(f"Buscando {ciudad_personalizada}..."):
+            # Obtener datos actuales
+            data, error = obtener_clima(ciudad_personalizada, API_KEY)
+            if data:
+                ciudad_personalizada_data = data
+                st.success(f"✅ {data['name']} encontrada")
+                
+                # Obtener pronóstico
+                forecast, forecast_error = obtener_pronostico(ciudad_personalizada, API_KEY)
+                if forecast:
+                    ciudad_personalizada_forecast = forecast
+                    ciudad_personalizada_pronosticos = obtener_pronosticos_por_horas(forecast, horas=[6, 12, 18, 24, 36, 48])
+            else:
+                st.error(f"❌ Error: {error}")
+
+# ============================================
 # FUNCIÓN PARA OBTENER DATOS METEOROLÓGICOS
 # ============================================
 def obtener_clima(ciudad, api_key, max_reintentos=3):
@@ -446,6 +481,103 @@ with col4:
     st.metric("💧 Humedad Prom.", f"{df['Humedad (%)'].mean():.1f}%")
 with col5:
     st.metric("💨 Viento Prom.", f"{df['Viento (km/h)'].mean():.1f} km/h")
+
+# ============================================
+# CIUDAD PERSONALIZADA (si se buscó)
+# ============================================
+if ciudad_personalizada_data:
+    st.header(f"📍 Ciudad Personalizada: {ciudad_personalizada_data['name']}")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("🌡️ Temperatura", f"{ciudad_personalizada_data['main']['temp']:.1f}°C")
+    with col2:
+        st.metric("🌤️ Estado", ciudad_personalizada_data['weather'][0]['description'].title())
+    with col3:
+        st.metric("💧 Humedad", f"{ciudad_personalizada_data['main']['humidity']}%")
+    with col4:
+        st.metric("💨 Viento", f"{ciudad_personalizada_data['wind']['speed'] * 3.6:.1f} km/h")
+    
+    # Pronósticos por horas para ciudad personalizada
+    if ciudad_personalizada_pronosticos:
+        st.subheader("⏰ Pronóstico por Horas")
+        horas = ['6h', '12h', '18h', '24h', '36h', '48h']
+        cols = st.columns(6)
+        
+        for i, hora in enumerate(horas):
+            with cols[i]:
+                if hora in ciudad_personalizada_pronosticos:
+                    p = ciudad_personalizada_pronosticos[hora]
+                    
+                    # Determinar emoji según condiciones
+                    emoji = "☀️"
+                    color_bg = "#E8F5E9"
+                    
+                    if 'thunderstorm' in p['main'] or 'tormenta' in p['description']:
+                        emoji = "⛈️"
+                        color_bg = "#FFEBEE"
+                    elif 'rain' in p['main'] or 'lluvia' in p['description'] or p['lluvia_3h'] > 0:
+                        emoji = "🌧️"
+                        color_bg = "#E3F2FD"
+                    elif 'snow' in p['main'] or 'nieve' in p['description'] or p['nieve_3h'] > 0:
+                        emoji = "❄️"
+                        color_bg = "#E1F5FE"
+                    elif 'hail' in p['description'] or 'granizo' in p['description']:
+                        emoji = "🧊"
+                        color_bg = "#FFF3E0"
+                    elif 'cloud' in p['main']:
+                        emoji = "☁️"
+                        color_bg = "#F5F5F5"
+                    
+                    st.markdown(
+                        f"""
+                        <div style="background-color: {color_bg}; padding: 10px; border-radius: 8px; text-align: center;">
+                            <h4 style="margin: 5px 0;">{hora}</h4>
+                            <p style="font-size: 24px; margin: 5px 0;">{emoji}</p>
+                            <p style="margin: 3px 0; font-weight: bold;">{p['temperatura']:.1f}°C</p>
+                            <p style="margin: 3px 0; font-size: 0.85em;">{p['descripcion'].title()}</p>
+                            <p style="margin: 3px 0; font-size: 0.8em;">💧 {p['humedad']}%</p>
+                            <p style="margin: 3px 0; font-size: 0.8em;">💨 {p['viento']:.1f} km/h</p>
+                            {f"<p style='margin: 3px 0; font-size: 0.8em; color: #1976d2;'>🌧️ {p['probabilidad_lluvia']:.0f}%</p>" if p['probabilidad_lluvia'] > 0 else ""}
+                            {f"<p style='margin: 3px 0; font-size: 0.8em; color: #1976d2;'>💧 {p['lluvia_3h']:.1f}mm</p>" if p['lluvia_3h'] > 0 else ""}
+                            {f"<p style='margin: 3px 0; font-size: 0.8em; color: #64B5F6;'>❄️ {p['nieve_3h']:.1f}mm</p>" if p['nieve_3h'] > 0 else ""}
+                            <p style="margin: 5px 0; font-size: 0.75em; color: #666;">{p['fecha'][:16]}</p>
+                        </div>
+                        """,
+                        unsafe_allow_html=True
+                    )
+    
+    # Analizar eventos para ciudad personalizada
+    if ciudad_personalizada_forecast:
+        eventos_personalizada = analizar_eventos_meteorologicos(ciudad_personalizada_forecast)
+        
+        if eventos_personalizada['lluvia'] or eventos_personalizada['tormenta'] or eventos_personalizada['granizo'] or eventos_personalizada['nieve']:
+            st.subheader("⚠️ Alertas de Pronóstico")
+            alert_cols = st.columns(2)
+            
+            with alert_cols[0]:
+                if eventos_personalizada['lluvia']:
+                    st.warning(f"🌧️ **Lluvia pronosticada**")
+                    if eventos_personalizada['probabilidad_lluvia_max'] > 0:
+                        st.write(f"   Probabilidad máxima: {eventos_personalizada['probabilidad_lluvia_max']:.0f}%")
+                    if eventos_personalizada['intensidad_lluvia_max'] > 0:
+                        st.write(f"   Intensidad máxima: {eventos_personalizada['intensidad_lluvia_max']:.2f} mm")
+                
+                if eventos_personalizada['tormenta']:
+                    st.error(f"⛈️ **Tormenta pronosticada**")
+            
+            with alert_cols[1]:
+                if eventos_personalizada['granizo']:
+                    st.error(f"🧊 **Granizo pronosticado**")
+                    st.write("   ⚠️ Precaución: riesgo de granizo")
+                
+                if eventos_personalizada['nieve']:
+                    st.info(f"❄️ **Nieve pronosticada**")
+                    if eventos_personalizada['probabilidad_nieve_max'] > 0:
+                        st.write(f"   Probabilidad máxima: {eventos_personalizada['probabilidad_nieve_max']:.0f}%")
+    
+    st.markdown("---")
 
 # ============================================
 # PRONÓSTICOS POR HORAS ESPECÍFICAS
