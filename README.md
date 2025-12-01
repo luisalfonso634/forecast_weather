@@ -34,9 +34,9 @@ Linux/Mac:
 export OPENWEATHER_API_KEY=tu_api_key_aqui
 ```
 
-**Opción 2: Editar directamente en el código**
+**⚠️ IMPORTANTE**: El código NO incluye una API key por defecto por razones de seguridad. Debes configurarla como variable de entorno.
 
-Edita la celda de configuración y reemplaza `'2f4c488fb0071f271d8970d535d398bc'` con tu API key.
+**Obtén tu API key gratuita en**: https://openweathermap.org/api
 
 ## 📖 Uso
 
@@ -87,8 +87,10 @@ Puedes agregar más países editando el diccionario `PAISES_CONFIG` en el notebo
 ## ⚠️ Notas de Seguridad
 
 - **NUNCA** subas tu API key a repositorios públicos
-- Usa variables de entorno para producción
-- La API key actual en el código es solo para pruebas
+- **NUNCA** hardcodees tu API key en el código
+- Usa **SIEMPRE** variables de entorno para la API key
+- El código está configurado para requerir la API key como variable de entorno
+- Si expusiste una API key, revócala inmediatamente en https://home.openweathermap.org/api_keys
 
 ## 🐛 Solución de Problemas
 
