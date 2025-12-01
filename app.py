@@ -62,6 +62,16 @@ PAISES_CONFIG = {
         "Montevideo, UY", "Salto, UY", "Paysandu, UY", "Las Piedras, UY",
         "Rivera, UY", "Maldonado, UY", "Tacuarembo, UY", "Melo, UY",
         "Mercedes, UY", "Artigas, UY"
+    ],
+    'Paraguay': [
+        "Asuncion, PY", "Ciudad del Este, PY", "San Lorenzo, PY", "Luque, PY",
+        "Capiatá, PY", "Lambaré, PY", "Fernando de la Mora, PY", "Limpio, PY",
+        "Encarnacion, PY", "Pedro Juan Caballero, PY"
+    ],
+    'Brasil': [
+        "São Paulo, BR", "Rio de Janeiro, BR", "Brasilia, BR", "Salvador, BR",
+        "Fortaleza, BR", "Belo Horizonte, BR", "Manaus, BR", "Curitiba, BR",
+        "Recife, BR", "Porto Alegre, BR"
     ]
 }
 
