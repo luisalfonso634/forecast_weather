@@ -301,7 +301,17 @@ for idx, row in df.iterrows():
     ).add_to(marker_cluster)
 
 # Mostrar mapa en Streamlit
-st.folium_chart(m, use_container_width=True)
+# Guardar el mapa como HTML temporal y mostrarlo
+import tempfile
+import os
+
+with tempfile.NamedTemporaryFile(delete=False, suffix='.html') as tmp_file:
+    m.save(tmp_file.name)
+    with open(tmp_file.name, 'r', encoding='utf-8') as f:
+        map_html = f.read()
+    os.unlink(tmp_file.name)
+
+st.components.v1.html(map_html, height=600, scrolling=True)
 
 # ============================================
 # GRÁFICO DE ISOTERMAS
