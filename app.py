@@ -67,9 +67,7 @@ PAISES_CONFIG = {
         "Encarnacion, PY", "Pedro Juan Caballero, PY"
     ],
     'Brasil': [
-        "São Paulo, BR", "Rio de Janeiro, BR", "Brasilia, BR", "Salvador, BR",
-        "Fortaleza, BR", "Belo Horizonte, BR", "Manaus, BR", "Curitiba, BR",
-        "Recife, BR", "Porto Alegre, BR"
+        "Rio de Janeiro, BR", "São Paulo, BR", "Manaus, BR", "Porto Alegre, BR", "Foz do Iguaçu, BR"
     ]
 }
 
