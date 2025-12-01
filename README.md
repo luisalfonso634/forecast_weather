@@ -40,7 +40,7 @@ Edita la celda de configuración y reemplaza `'2f4c488fb0071f271d8970d535d398bc'
 
 ## 📖 Uso
 
-1. Abre el notebook `Copia de API_Weather.ipynb`
+1. Abre el notebook `API_Weather_VERSION_2.ipynb`
 2. Ejecuta las celdas en orden
 3. Selecciona el país cambiando `PAIS_SELECCIONADO` en la celda de configuración
 4. Los resultados se guardarán automáticamente:
@@ -117,4 +117,3 @@ Las contribuciones son bienvenidas. Por favor:
 ---
 
 **Desarrollado con ❤️ usando Python, OpenWeatherMap API, Folium y Matplotlib**
-
