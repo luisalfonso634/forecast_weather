@@ -709,6 +709,7 @@ if ciudad_personalizada_data:
                     lluvia_mm_html = f"<p style='margin: 3px 0; font-size: 0.8em; color: #1976d2;'>💧 {p['lluvia_3h']:.1f}mm</p>" if p['lluvia_3h'] > 0 else ""
                     nieve_mm_html = f"<p style='margin: 3px 0; font-size: 0.8em; color: #64B5F6;'>❄️ {p['nieve_3h']:.1f}mm</p>" if p['nieve_3h'] > 0 else ""
                     
+                    fecha_formateada = p['fecha'][:16] if 'fecha' in p else "N/D"
                     html_content = f"""
                     <div style="background-color: {color_bg}; padding: 10px; border-radius: 8px; text-align: center;">
                         <h4 style="margin: 5px 0;">{hora}</h4>
@@ -720,7 +721,7 @@ if ciudad_personalizada_data:
                         {lluvia_html}
                         {lluvia_mm_html}
                         {nieve_mm_html}
-                        <p style="margin: 5px 0; font-size: 0.75em; color: #666;">{p['fecha'][:16]}</p>
+                        <p style="margin: 5px 0; font-size: 0.75em; color: #666;">{fecha_formateada}</p>
                     </div>
                     """
                     
@@ -812,6 +813,7 @@ else:
                         lluvia_mm_html = f"<p style='margin: 3px 0; font-size: 0.8em; color: #1976d2;'>💧 {p['lluvia_3h']:.1f}mm</p>" if p['lluvia_3h'] > 0 else ""
                         nieve_mm_html = f"<p style='margin: 3px 0; font-size: 0.8em; color: #64B5F6;'>❄️ {p['nieve_3h']:.1f}mm</p>" if p['nieve_3h'] > 0 else ""
                         
+                        fecha_formateada = p['fecha'][:16] if 'fecha' in p else "N/D"
                         html_content = f"""
                         <div style="background-color: {color_bg}; padding: 10px; border-radius: 8px; text-align: center;">
                             <h4 style="margin: 5px 0;">{hora}</h4>
@@ -823,7 +825,7 @@ else:
                             {lluvia_html}
                             {lluvia_mm_html}
                             {nieve_mm_html}
-                            <p style="margin: 5px 0; font-size: 0.75em; color: #666;">{p['fecha'][:16]}</p>
+                            <p style="margin: 5px 0; font-size: 0.75em; color: #666;">{fecha_formateada}</p>
                         </div>
                         """
                         
