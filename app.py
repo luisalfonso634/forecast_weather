@@ -58,8 +58,10 @@ PAISES_CONFIG = {
     'Chile': [
         "Santiago, CL", "Valparaiso, CL", "Concepcion, CL", "La Serena, CL"
     ],
-    'Peru': [
-        "Lima, PE", "Arequipa, PE", "Trujillo, PE", "Cusco, PE"
+    'Uruguay': [
+        "Montevideo, UY", "Salto, UY", "Paysandu, UY", "Las Piedras, UY",
+        "Rivera, UY", "Maldonado, UY", "Tacuarembo, UY", "Melo, UY",
+        "Mercedes, UY", "Artigas, UY"
     ]
 }
 
