@@ -308,6 +308,10 @@ if buscar_ciudad and ciudad_personalizada:
                 if forecast:
                     ciudad_personalizada_forecast = forecast
                     ciudad_personalizada_pronosticos = obtener_pronosticos_por_horas(forecast, horas=[6, 12, 18, 24, 36, 48])
+                else:
+                    if forecast_error:
+                        st.warning(f"⚠️ Pronóstico no disponible: {forecast_error}")
+                        st.info("💡 Nota: Algunas API keys gratuitas pueden tener límites en el acceso a pronósticos. Los datos actuales están disponibles.")
             else:
                 st.error(f"❌ Error: {error}")
 
@@ -349,6 +353,10 @@ if obtener_datos or 'weather_data' not in st.session_state:
                     forecast_data_list.append(forecast)
                 else:
                     forecast_data_list.append(None)
+                    # Guardar el error si es relevante para mostrar después
+                    if forecast_error and forecast_error not in ["Ciudad no encontrada", "API Key inválida"]:
+                        # Solo mostrar advertencia si es un problema de pronóstico específico
+                        pass
             else:
                 errores.append((ciudad, error))
                 forecast_data_list.append(None)
@@ -367,7 +375,29 @@ if obtener_datos or 'weather_data' not in st.session_state:
             st.session_state.weather_data = weather_data
             st.session_state.forecast_data = forecast_data_list
             st.session_state.errores = errores
-            st.success(f"✅ {len(weather_data)} ciudades procesadas correctamente")
+            
+            # Verificar cuántos pronósticos se obtuvieron
+            pronosticos_obtenidos = sum(1 for f in forecast_data_list if f is not None)
+            ciudades_sin_pronostico = len(weather_data) - pronosticos_obtenidos
+            
+            if pronosticos_obtenidos > 0:
+                st.success(f"✅ {len(weather_data)} ciudades procesadas correctamente")
+                if ciudades_sin_pronostico > 0:
+                    st.warning(f"⚠️ {ciudades_sin_pronostico} ciudades sin pronóstico disponible. Se mostrarán solo datos actuales.")
+                    st.info("💡 **Nota sobre pronósticos:**\n"
+                           "- Las API keys gratuitas pueden tener límites en el acceso a pronósticos\n"
+                           "- Si excedes el límite (429), espera unos minutos\n"
+                           "- Algunas ciudades remotas pueden no tener datos de pronóstico\n"
+                           "- Los datos actuales siempre estarán disponibles")
+            else:
+                st.success(f"✅ {len(weather_data)} ciudades procesadas correctamente")
+                st.warning("⚠️ **Pronósticos no disponibles**")
+                st.info("💡 **Posibles razones:**\n"
+                       "- API Key gratuita con límites alcanzados\n"
+                       "- Límite de solicitudes excedido (espera unos minutos)\n"
+                       "- La API key puede no tener acceso al endpoint de pronóstico\n"
+                       "- Problemas temporales de conexión\n\n"
+                       "**Los datos actuales están disponibles, pero los pronósticos no se pueden mostrar.**")
         else:
             st.error("❌ No se pudieron obtener datos de ninguna ciudad")
             st.stop()
@@ -466,9 +496,162 @@ for i, data in enumerate(weather_data):
 df = pd.DataFrame(datos, columns=columnas)
 
 # ============================================
-# MOSTRAR RESUMEN ESTADÍSTICO
+# MAPA INTERACTIVO (PRIMERO)
 # ============================================
-st.header("📊 Resumen Estadístico")
+st.header("🗺️ Mapa Interactivo")
+
+lat_centro = df['Latitud'].mean()
+lon_centro = df['Longitud'].mean()
+
+m = folium.Map(
+    location=[lat_centro, lon_centro],
+    zoom_start=6,
+    tiles='OpenStreetMap'
+)
+
+# Capa de calor
+heat_data = [[row['Latitud'], row['Longitud'], row['Temperatura (°C)']] 
+             for idx, row in df.iterrows()]
+HeatMap(heat_data, radius=25, blur=15, max_zoom=1).add_to(m)
+
+# Marcadores
+marker_cluster = MarkerCluster().add_to(m)
+
+for idx, row in df.iterrows():
+    temp = row['Temperatura (°C)']
+    eventos = eventos_por_ciudad[idx]
+    
+    # Determinar color según temperatura
+    if temp < 10:
+        color = 'blue'
+    elif temp < 20:
+        color = 'green'
+    elif temp < 30:
+        color = 'orange'
+    else:
+        color = 'red'
+    
+    # Determinar icono según eventos meteorológicos
+    if eventos['granizo']:
+        icon = 'exclamation-triangle'
+        color = 'red'
+    elif eventos['tormenta']:
+        icon = 'bolt'
+        color = 'purple'
+    elif eventos['nieve']:
+        icon = 'snowflake'
+        color = 'lightblue'
+    elif eventos['lluvia']:
+        icon = 'tint'
+        color = 'blue'
+    else:
+        icon = 'cloud'
+    
+    # Construir texto de pronóstico para el popup
+    pronosticos_popup = []
+    if eventos['lluvia']:
+        pronosticos_popup.append(f"🌧️ Lluvia ({eventos['probabilidad_lluvia_max']:.0f}%)")
+    if eventos['tormenta']:
+        pronosticos_popup.append("⛈️ Tormenta")
+    if eventos['granizo']:
+        pronosticos_popup.append("🧊 Granizo")
+    if eventos['nieve']:
+        pronosticos_popup.append(f"❄️ Nieve ({eventos['probabilidad_nieve_max']:.0f}%)")
+    
+    pronostico_texto = '<br>'.join(pronosticos_popup) if pronosticos_popup else 'Sin eventos pronosticados'
+    
+    popup_html = f"""
+    <div style="font-family: Arial; width: 280px;">
+        <h3 style="margin: 5px 0; color: #2c3e50;">{row['Ciudad']}</h3>
+        <hr style="margin: 5px 0;">
+        <p style="margin: 3px 0;"><b>🌡️ Temperatura:</b> {row['Temperatura (°C)']:.1f}°C</p>
+        <p style="margin: 3px 0;"><b>🌤️ Estado:</b> {row['Descripción del clima']}</p>
+        <p style="margin: 3px 0;"><b>💧 Humedad:</b> {row['Humedad (%)']}%</p>
+        <p style="margin: 3px 0;"><b>💨 Viento:</b> {row['Viento (km/h)']:.1f} km/h</p>
+        <p style="margin: 3px 0;"><b>📊 Presión:</b> {row['Presión (hPa)']} hPa</p>
+        <hr style="margin: 8px 0;">
+        <p style="margin: 3px 0;"><b>📅 Pronóstico (5 días):</b></p>
+        <p style="margin: 3px 0; color: {'#d32f2f' if eventos['tormenta'] or eventos['granizo'] else '#1976d2'};">
+            {pronostico_texto}
+        </p>
+    </div>
+    """
+    
+    # Tooltip con información de pronóstico
+    tooltip_text = f"{row['Ciudad']}: {row['Temperatura (°C)']:.1f}°C"
+    if eventos['lluvia'] or eventos['tormenta'] or eventos['granizo'] or eventos['nieve']:
+        tooltip_text += " ⚠️"
+    
+    folium.Marker(
+        location=[row['Latitud'], row['Longitud']],
+        popup=folium.Popup(popup_html, max_width=300),
+        icon=folium.Icon(color=color, icon=icon, prefix='fa'),
+        tooltip=tooltip_text
+    ).add_to(marker_cluster)
+
+# Mostrar mapa en Streamlit
+import tempfile
+import os
+
+with tempfile.NamedTemporaryFile(delete=False, suffix='.html') as tmp_file:
+    m.save(tmp_file.name)
+    with open(tmp_file.name, 'r', encoding='utf-8') as f:
+        map_html = f.read()
+    os.unlink(tmp_file.name)
+
+st.components.v1.html(map_html, height=600, scrolling=True)
+
+# ============================================
+# ALERTAS DE PRONÓSTICO (SEGUNDO)
+# ============================================
+st.header("⚠️ Alertas de Pronóstico (Próximos 5 días)")
+
+ciudades_con_eventos = []
+for i, eventos in enumerate(eventos_por_ciudad):
+    if eventos['lluvia'] or eventos['tormenta'] or eventos['granizo'] or eventos['nieve']:
+        ciudades_con_eventos.append((df.iloc[i]['Ciudad'], eventos))
+
+if ciudades_con_eventos:
+    for ciudad, eventos in ciudades_con_eventos:
+        with st.expander(f"🌍 {ciudad}", expanded=False):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                if eventos['lluvia']:
+                    st.warning(f"🌧️ **Lluvia pronosticada**")
+                    if eventos['probabilidad_lluvia_max'] > 0:
+                        st.write(f"   Probabilidad máxima: {eventos['probabilidad_lluvia_max']:.0f}%")
+                    if eventos['intensidad_lluvia_max'] > 0:
+                        st.write(f"   Intensidad máxima: {eventos['intensidad_lluvia_max']:.2f} mm")
+                    if eventos['horas_lluvia']:
+                        st.write(f"   Horarios: {', '.join(eventos['horas_lluvia'][:3])}...")
+                
+                if eventos['tormenta']:
+                    st.error(f"⛈️ **Tormenta pronosticada**")
+                    if eventos['horas_tormenta']:
+                        st.write(f"   Horarios: {', '.join(eventos['horas_tormenta'][:3])}...")
+            
+            with col2:
+                if eventos['granizo']:
+                    st.error(f"🧊 **Granizo pronosticado**")
+                    st.write("   ⚠️ Precaución: riesgo de granizo")
+                
+                if eventos['nieve']:
+                    st.info(f"❄️ **Nieve pronosticada**")
+                    if eventos['probabilidad_nieve_max'] > 0:
+                        st.write(f"   Probabilidad máxima: {eventos['probabilidad_nieve_max']:.0f}%")
+                    if eventos['horas_nieve']:
+                        st.write(f"   Horarios: {', '.join(eventos['horas_nieve'][:3])}...")
+else:
+    st.success("✅ No se pronostican eventos meteorológicos significativos en las próximas ciudades")
+
+# ============================================
+# CONDICIONES ACTUALES (TERCERO)
+# ============================================
+st.header("🌤️ Condiciones Actuales")
+
+# Resumen Estadístico
+st.subheader("📊 Resumen Estadístico")
 
 col1, col2, col3, col4, col5 = st.columns(5)
 
@@ -585,11 +768,22 @@ if ciudad_personalizada_data:
 # ============================================
 st.header("⏰ Pronósticos por Horas (6, 12, 18, 24, 36, 48 horas)")
 
-for idx, row in df.iterrows():
-    ciudad = row['Ciudad']
-    pronosticos = pronosticos_por_horas[idx] if idx < len(pronosticos_por_horas) else {}
-    
-    if pronosticos:
+# Verificar si hay pronósticos disponibles
+pronosticos_disponibles = any(pronosticos_por_horas) and any(p for p in pronosticos_por_horas if p)
+
+if not pronosticos_disponibles:
+    st.warning("⚠️ **Pronósticos no disponibles**")
+    st.info("💡 Los pronósticos no están disponibles en este momento. Posibles razones:\n"
+           "- API Key gratuita con límites alcanzados\n"
+           "- Límite de solicitudes excedido\n"
+           "- Problemas temporales de conexión\n\n"
+           "Los datos actuales están disponibles arriba.")
+else:
+    for idx, row in df.iterrows():
+        ciudad = row['Ciudad']
+        pronosticos = pronosticos_por_horas[idx] if idx < len(pronosticos_por_horas) else {}
+        
+        if pronosticos:
         with st.expander(f"🌍 {ciudad}", expanded=False):
             horas = ['6h', '12h', '18h', '24h', '36h', '48h']
             cols = st.columns(6)
@@ -638,9 +832,10 @@ for idx, row in df.iterrows():
                         )
                     else:
                         st.info("N/D")
-    else:
-        with st.expander(f"🌍 {ciudad}", expanded=False):
-            st.warning("No hay datos de pronóstico disponibles para esta ciudad")
+        else:
+            with st.expander(f"🌍 {ciudad}", expanded=False):
+                st.warning("⚠️ No hay datos de pronóstico disponibles para esta ciudad")
+                st.info("💡 Esto puede deberse a límites de la API o problemas temporales. Los datos actuales están disponibles arriba.")
 
 # ============================================
 # ALERTAS DE PRONÓSTICO
