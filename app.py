@@ -28,37 +28,16 @@ st.markdown("---")
 # ============================================
 # CONFIGURACIÓN DE API KEY
 # ============================================
-# Cargar API Key automáticamente desde variable de entorno
+# Cargar API Key automáticamente desde variable de entorno o usar fallback
 API_KEY = os.getenv('OPENWEATHER_API_KEY')
 
+# Fallback: Si no está en variable de entorno, usar la API key directamente
+# NOTA: En producción, siempre usa variable de entorno para mayor seguridad
 if not API_KEY:
-    st.error("⚠️ **ERROR: API Key no configurada**")
-    st.info(
-        "**La API Key debe configurarse como variable de entorno:**\n\n"
-        "**Windows (PowerShell):**\n"
-        "```powershell\n"
-        "$env:OPENWEATHER_API_KEY = 'tu_api_key_aqui'\n"
-        "```\n\n"
-        "**Windows (CMD):**\n"
-        "```cmd\n"
-        "set OPENWEATHER_API_KEY=tu_api_key_aqui\n"
-        "```\n\n"
-        "**Linux/Mac:**\n"
-        "```bash\n"
-        "export OPENWEATHER_API_KEY=tu_api_key_aqui\n"
-        "```\n\n"
-        "**Para hacerlo permanente en Windows:**\n"
-        "1. Presiona `Win + R`, escribe `sysdm.cpl` y presiona Enter\n"
-        "2. Ve a 'Opciones avanzadas' → 'Variables de entorno'\n"
-        "3. En 'Variables del usuario', click en 'Nueva'\n"
-        "4. Nombre: `OPENWEATHER_API_KEY`\n"
-        "5. Valor: Tu API key\n"
-        "6. Reinicia tu terminal/IDE\n\n"
-        "Obtén tu API key gratuita en: https://openweathermap.org/api"
-    )
-    st.stop()
+    API_KEY = "2f4c488fb0071f271d8970d535d398bc"
+    st.sidebar.warning("⚠️ Usando API Key por defecto (configura variable de entorno para producción)")
 
-# Mostrar confirmación en sidebar (sin mostrar la key)
+# Mostrar confirmación en sidebar
 st.sidebar.success("✅ API Key configurada")
 
 # ============================================
