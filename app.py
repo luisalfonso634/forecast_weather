@@ -588,27 +588,82 @@ st.components.v1.html(map_html, height=600, scrolling=True)
 # ============================================
 # CONDICIONES ACTUALES (SEGUNDO)
 # ============================================
-st.header(f"🌤️ Condiciones Actuales - {pais_seleccionado}")
+# Determinar qué ciudad mostrar (prioridad: ciudad personalizada > primera ciudad del país)
+if ciudad_personalizada_data:
+    ciudad_mostrar = ciudad_personalizada_data['name']
+    pais_mostrar = ciudad_personalizada_data['sys']['country']
+    temp_actual = ciudad_personalizada_data['main']['temp']
+    descripcion_actual = ciudad_personalizada_data['weather'][0]['description'].title()
+    humedad_actual = ciudad_personalizada_data['main']['humidity']
+    viento_actual = ciudad_personalizada_data['wind']['speed'] * 3.6
+    presion_actual = ciudad_personalizada_data['main']['pressure']
+    sensacion_termica = ciudad_personalizada_data['main'].get('feels_like', temp_actual)
+    lat_ciudad = ciudad_personalizada_data['coord']['lat']
+    lon_ciudad = ciudad_personalizada_data['coord']['lon']
+else:
+    # Usar la primera ciudad del país seleccionado
+    if len(df) > 0:
+        primera_ciudad = df.iloc[0]
+        ciudad_mostrar = primera_ciudad['Ciudad']
+        pais_mostrar = pais_seleccionado
+        temp_actual = primera_ciudad['Temperatura (°C)']
+        descripcion_actual = primera_ciudad['Descripción del clima']
+        humedad_actual = primera_ciudad['Humedad (%)']
+        viento_actual = primera_ciudad['Viento (km/h)']
+        presion_actual = primera_ciudad['Presión (hPa)']
+        sensacion_termica = temp_actual  # Aproximación
+        lat_ciudad = primera_ciudad['Latitud']
+        lon_ciudad = primera_ciudad['Longitud']
+    else:
+        ciudad_mostrar = "N/A"
+        pais_mostrar = pais_seleccionado
+        temp_actual = 0
+        descripcion_actual = "N/A"
+        humedad_actual = 0
+        viento_actual = 0
+        presion_actual = 0
+        sensacion_termica = 0
+        lat_ciudad = 0
+        lon_ciudad = 0
 
-# Resumen Estadístico
-st.subheader(f"📊 Resumen Estadístico ({len(df)} ciudades de {pais_seleccionado})")
+st.header(f"🌤️ Condiciones Actuales - {ciudad_mostrar}, {pais_mostrar}")
+st.caption(f"🌍 Ubicación: {lat_ciudad:.2f}°N, {lon_ciudad:.2f}°E")
 
-col1, col2, col3, col4, col5 = st.columns(5)
+# Mostrar condiciones actuales de la ciudad
+col1, col2, col3, col4 = st.columns(4)
 
 with col1:
-    st.metric("🌡️ Temp. Promedio", f"{df['Temperatura (°C)'].mean():.1f}°C")
+    st.metric("🌡️ Temperatura", f"{temp_actual:.1f}°C")
+    st.caption(f"Sensación térmica: {sensacion_termica:.1f}°C")
 with col2:
-    st.metric("❄️ Temp. Mínima", f"{df['Temperatura (°C)'].min():.1f}°C")
+    st.metric("🌤️ Estado", descripcion_actual)
 with col3:
-    st.metric("🔥 Temp. Máxima", f"{df['Temperatura (°C)'].max():.1f}°C")
+    st.metric("💧 Humedad", f"{humedad_actual}%")
 with col4:
-    st.metric("💧 Humedad Prom.", f"{df['Humedad (%)'].mean():.1f}%")
-with col5:
-    st.metric("💨 Viento Prom.", f"{df['Viento (km/h)'].mean():.1f} km/h")
+    st.metric("💨 Viento", f"{viento_actual:.1f} km/h")
+    st.metric("📊 Presión", f"{presion_actual} hPa")
 
-# Tabla de datos completos
-st.subheader(f"📋 Datos Completos por Ciudad ({pais_seleccionado})")
-st.dataframe(df, use_container_width=True, hide_index=True)
+# Resumen Estadístico del país (si hay múltiples ciudades)
+if len(df) > 1 and not ciudad_personalizada_data:
+    st.markdown("---")
+    st.subheader(f"📊 Resumen Estadístico ({len(df)} ciudades de {pais_seleccionado})")
+    
+    col1, col2, col3, col4, col5 = st.columns(5)
+    
+    with col1:
+        st.metric("🌡️ Temp. Promedio", f"{df['Temperatura (°C)'].mean():.1f}°C")
+    with col2:
+        st.metric("❄️ Temp. Mínima", f"{df['Temperatura (°C)'].min():.1f}°C")
+    with col3:
+        st.metric("🔥 Temp. Máxima", f"{df['Temperatura (°C)'].max():.1f}°C")
+    with col4:
+        st.metric("💧 Humedad Prom.", f"{df['Humedad (%)'].mean():.1f}%")
+    with col5:
+        st.metric("💨 Viento Prom.", f"{df['Viento (km/h)'].mean():.1f} km/h")
+    
+    # Tabla de datos completos
+    st.subheader(f"📋 Datos Completos por Ciudad ({pais_seleccionado})")
+    st.dataframe(df, use_container_width=True, hide_index=True)
 
 # ============================================
 # ALERTAS DE PRONÓSTICO (TERCERO)
@@ -710,20 +765,18 @@ if ciudad_personalizada_data:
                     nieve_mm_html = f"<p style='margin: 3px 0; font-size: 0.8em; color: #64B5F6;'>❄️ {p['nieve_3h']:.1f}mm</p>" if p['nieve_3h'] > 0 else ""
                     
                     fecha_formateada = p['fecha'][:16] if 'fecha' in p else "N/D"
-                    html_content = f"""
-                    <div style="background-color: {color_bg}; padding: 10px; border-radius: 8px; text-align: center;">
-                        <h4 style="margin: 5px 0;">{hora}</h4>
-                        <p style="font-size: 24px; margin: 5px 0;">{emoji}</p>
-                        <p style="margin: 3px 0; font-weight: bold;">{p['temperatura']:.1f}°C</p>
-                        <p style="margin: 3px 0; font-size: 0.85em;">{p['descripcion'].title()}</p>
-                        <p style="margin: 3px 0; font-size: 0.8em;">💧 {p['humedad']}%</p>
-                        <p style="margin: 3px 0; font-size: 0.8em;">💨 {p['viento']:.1f} km/h</p>
-                        {lluvia_html}
-                        {lluvia_mm_html}
-                        {nieve_mm_html}
-                        <p style="margin: 5px 0; font-size: 0.75em; color: #666;">{fecha_formateada}</p>
-                    </div>
-                    """
+                    html_content = f"""<div style="background-color: {color_bg}; padding: 10px; border-radius: 8px; text-align: center;">
+<h4 style="margin: 5px 0;">{hora}</h4>
+<p style="font-size: 24px; margin: 5px 0;">{emoji}</p>
+<p style="margin: 3px 0; font-weight: bold;">{p['temperatura']:.1f}°C</p>
+<p style="margin: 3px 0; font-size: 0.85em;">{p['descripcion'].title()}</p>
+<p style="margin: 3px 0; font-size: 0.8em;">💧 {p['humedad']}%</p>
+<p style="margin: 3px 0; font-size: 0.8em;">💨 {p['viento']:.1f} km/h</p>
+{lluvia_html}
+{lluvia_mm_html}
+{nieve_mm_html}
+<p style="margin: 5px 0; font-size: 0.75em; color: #666;">{fecha_formateada}</p>
+</div>"""
                     
                     st.markdown(html_content, unsafe_allow_html=True)
     
@@ -814,20 +867,18 @@ else:
                         nieve_mm_html = f"<p style='margin: 3px 0; font-size: 0.8em; color: #64B5F6;'>❄️ {p['nieve_3h']:.1f}mm</p>" if p['nieve_3h'] > 0 else ""
                         
                         fecha_formateada = p['fecha'][:16] if 'fecha' in p else "N/D"
-                        html_content = f"""
-                        <div style="background-color: {color_bg}; padding: 10px; border-radius: 8px; text-align: center;">
-                            <h4 style="margin: 5px 0;">{hora}</h4>
-                            <p style="font-size: 24px; margin: 5px 0;">{emoji}</p>
-                            <p style="margin: 3px 0; font-weight: bold;">{p['temperatura']:.1f}°C</p>
-                            <p style="margin: 3px 0; font-size: 0.85em;">{p['descripcion'].title()}</p>
-                            <p style="margin: 3px 0; font-size: 0.8em;">💧 {p['humedad']}%</p>
-                            <p style="margin: 3px 0; font-size: 0.8em;">💨 {p['viento']:.1f} km/h</p>
-                            {lluvia_html}
-                            {lluvia_mm_html}
-                            {nieve_mm_html}
-                            <p style="margin: 5px 0; font-size: 0.75em; color: #666;">{fecha_formateada}</p>
-                        </div>
-                        """
+                        html_content = f"""<div style="background-color: {color_bg}; padding: 10px; border-radius: 8px; text-align: center;">
+<h4 style="margin: 5px 0;">{hora}</h4>
+<p style="font-size: 24px; margin: 5px 0;">{emoji}</p>
+<p style="margin: 3px 0; font-weight: bold;">{p['temperatura']:.1f}°C</p>
+<p style="margin: 3px 0; font-size: 0.85em;">{p['descripcion'].title()}</p>
+<p style="margin: 3px 0; font-size: 0.8em;">💧 {p['humedad']}%</p>
+<p style="margin: 3px 0; font-size: 0.8em;">💨 {p['viento']:.1f} km/h</p>
+{lluvia_html}
+{lluvia_mm_html}
+{nieve_mm_html}
+<p style="margin: 5px 0; font-size: 0.75em; color: #666;">{fecha_formateada}</p>
+</div>"""
                         
                         st.markdown(html_content, unsafe_allow_html=True)
                     else:
