@@ -737,6 +737,7 @@ if ciudad_personalizada_data:
     # Pronósticos por horas para ciudad personalizada
     if ciudad_personalizada_pronosticos:
         st.subheader("⏰ Pronóstico por Horas")
+        st.caption("ℹ️ Las horas mostradas son en UTC (hora Z)")
         horas = ['6h', '12h', '18h', '24h', '36h', '48h']
         cols = st.columns(6)
         
@@ -781,7 +782,7 @@ if ciudad_personalizada_data:
 {lluvia_html}
 {lluvia_mm_html}
 {nieve_mm_html}
-<p style="margin: 5px 0; font-size: 0.75em; color: #666;">{fecha_formateada}</p>
+<p style="margin: 5px 0; font-size: 0.75em; color: #666;">{fecha_formateada} UTC</p>
 </div>"""
                     
                     st.markdown(html_content, unsafe_allow_html=True)
@@ -821,6 +822,7 @@ if ciudad_personalizada_data:
 # PRONÓSTICOS POR HORAS ESPECÍFICAS
 # ============================================
 st.header(f"⏰ Pronósticos por Horas - {pais_seleccionado} (6, 12, 18, 24, 36, 48 horas)")
+st.caption("ℹ️ Las horas mostradas son en UTC (hora Z)")
 
 # Verificar si hay pronósticos disponibles
 pronosticos_disponibles = any(pronosticos_por_horas) and any(p for p in pronosticos_por_horas if p)
@@ -883,7 +885,7 @@ else:
 {lluvia_html}
 {lluvia_mm_html}
 {nieve_mm_html}
-<p style="margin: 5px 0; font-size: 0.75em; color: #666;">{fecha_formateada}</p>
+<p style="margin: 5px 0; font-size: 0.75em; color: #666;">{fecha_formateada} UTC</p>
 </div>"""
                         
                         st.markdown(html_content, unsafe_allow_html=True)
