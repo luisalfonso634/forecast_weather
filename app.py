@@ -91,41 +91,6 @@ ciudades = PAISES_CONFIG.get(pais_seleccionado, PAISES_CONFIG['Argentina'])
 st.sidebar.info(f"📊 Se consultarán {len(ciudades)} ciudades de {pais_seleccionado}")
 
 # ============================================
-# BÚSQUEDA DE CIUDAD ESPECÍFICA
-# ============================================
-st.sidebar.markdown("---")
-st.sidebar.header("🔍 Búsqueda Personalizada")
-
-ciudad_personalizada = st.sidebar.text_input(
-    "Buscar ciudad específica",
-    placeholder="Ej: Madrid, ES o New York, US",
-    help="Ingresa el nombre de la ciudad y código de país (ej: 'Madrid, ES' o 'New York, US')"
-)
-
-buscar_ciudad = st.sidebar.button("🔍 Buscar Ciudad", use_container_width=True)
-
-ciudad_personalizada_data = None
-ciudad_personalizada_forecast = None
-ciudad_personalizada_pronosticos = {}
-
-if buscar_ciudad and ciudad_personalizada:
-    with st.sidebar:
-        with st.spinner(f"Buscando {ciudad_personalizada}..."):
-            # Obtener datos actuales
-            data, error = obtener_clima(ciudad_personalizada, API_KEY)
-            if data:
-                ciudad_personalizada_data = data
-                st.success(f"✅ {data['name']} encontrada")
-                
-                # Obtener pronóstico
-                forecast, forecast_error = obtener_pronostico(ciudad_personalizada, API_KEY)
-                if forecast:
-                    ciudad_personalizada_forecast = forecast
-                    ciudad_personalizada_pronosticos = obtener_pronosticos_por_horas(forecast, horas=[6, 12, 18, 24, 36, 48])
-            else:
-                st.error(f"❌ Error: {error}")
-
-# ============================================
 # FUNCIÓN PARA OBTENER DATOS METEOROLÓGICOS
 # ============================================
 def obtener_clima(ciudad, api_key, max_reintentos=3):
@@ -312,8 +277,44 @@ def analizar_eventos_meteorologicos(forecast_data):
     return eventos
 
 # ============================================
+# BÚSQUEDA DE CIUDAD ESPECÍFICA
+# ============================================
+st.sidebar.markdown("---")
+st.sidebar.header("🔍 Búsqueda Personalizada")
+
+ciudad_personalizada = st.sidebar.text_input(
+    "Buscar ciudad específica",
+    placeholder="Ej: Madrid, ES o New York, US",
+    help="Ingresa el nombre de la ciudad y código de país (ej: 'Madrid, ES' o 'New York, US')"
+)
+
+buscar_ciudad = st.sidebar.button("🔍 Buscar Ciudad", use_container_width=True)
+
+ciudad_personalizada_data = None
+ciudad_personalizada_forecast = None
+ciudad_personalizada_pronosticos = {}
+
+if buscar_ciudad and ciudad_personalizada:
+    with st.sidebar:
+        with st.spinner(f"Buscando {ciudad_personalizada}..."):
+            # Obtener datos actuales
+            data, error = obtener_clima(ciudad_personalizada, API_KEY)
+            if data:
+                ciudad_personalizada_data = data
+                st.success(f"✅ {data['name']} encontrada")
+                
+                # Obtener pronóstico
+                forecast, forecast_error = obtener_pronostico(ciudad_personalizada, API_KEY)
+                if forecast:
+                    ciudad_personalizada_forecast = forecast
+                    ciudad_personalizada_pronosticos = obtener_pronosticos_por_horas(forecast, horas=[6, 12, 18, 24, 36, 48])
+            else:
+                st.error(f"❌ Error: {error}")
+
+# ============================================
 # OBTENER DATOS DE TODAS LAS CIUDADES
 # ============================================
+st.sidebar.markdown("---")
 obtener_datos = st.sidebar.button("🔍 Obtener Datos Meteorológicos", type="primary", use_container_width=True)
 
 # Limpiar datos si se cambió el país
