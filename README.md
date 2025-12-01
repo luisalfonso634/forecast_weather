@@ -40,10 +40,38 @@ export OPENWEATHER_API_KEY=tu_api_key_aqui
 
 ## 📖 Uso
 
+### Opción 1: Aplicación Streamlit (Recomendado) 🌐
+
+La forma más fácil de usar el proyecto es mediante la aplicación web interactiva:
+
+```bash
+# Instalar dependencias
+pip install -r requirements.txt
+
+# Configurar API Key (Windows PowerShell)
+$env:OPENWEATHER_API_KEY = "tu_api_key_aqui"
+
+# Ejecutar la aplicación
+streamlit run app.py
+```
+
+La aplicación se abrirá automáticamente en tu navegador en `http://localhost:8501`
+
+**Características de la app:**
+- ✅ Interfaz web interactiva y moderna
+- ✅ Selección de país desde el sidebar
+- ✅ Mapa interactivo con marcadores y capa de calor
+- ✅ Gráficos de isotermas
+- ✅ Tabla de datos completa
+- ✅ Resumen estadístico en tiempo real
+
+### Opción 2: Jupyter Notebook 📓
+
 1. Abre el notebook `API_Weather_VERSION_2.ipynb`
-2. Ejecuta las celdas en orden
-3. Selecciona el país cambiando `PAIS_SELECCIONADO` en la celda de configuración
-4. Los resultados se guardarán automáticamente:
+2. Configura tu API Key como variable de entorno
+3. Ejecuta las celdas en orden
+4. Selecciona el país cambiando `PAIS_SELECCIONADO` en la celda de configuración
+5. Los resultados se guardarán automáticamente:
    - Mapa HTML: `mapa_clima_[pais]_[fecha].html`
    - Gráfico PNG: `isotermas_[pais]_[fecha].png`
 
