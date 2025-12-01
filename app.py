@@ -7,7 +7,7 @@ from folium.plugins import HeatMap, MarkerCluster
 import numpy as np
 from scipy.interpolate import griddata
 import matplotlib.pyplot as plt
-from datetime import datetime
+from datetime import datetime, timedelta
 import warnings
 import urllib3
 warnings.filterwarnings('ignore')
@@ -133,6 +133,150 @@ def obtener_clima(ciudad, api_key, max_reintentos=3):
     return None, "Error después de múltiples intentos"
 
 # ============================================
+# FUNCIÓN PARA OBTENER PRONÓSTICO
+# ============================================
+def obtener_pronostico(ciudad, api_key, max_reintentos=3):
+    """Obtiene pronóstico meteorológico de 5 días para una ciudad"""
+    url = "https://api.openweathermap.org/data/2.5/forecast"
+    params = {
+        "q": ciudad,
+        "appid": api_key,
+        "units": "metric",
+        "lang": "es",
+        "cnt": 40  # 40 períodos = 5 días (cada 3 horas)
+    }
+    
+    for intento in range(max_reintentos):
+        try:
+            try:
+                response = requests.get(url, params=params, timeout=10)
+            except requests.exceptions.SSLError:
+                response = requests.get(url, params=params, timeout=10, verify=False)
+            
+            if response.status_code == 200:
+                return response.json(), None
+            elif response.status_code == 401:
+                return None, "API Key inválida"
+            elif response.status_code == 404:
+                return None, f"Ciudad '{ciudad}' no encontrada"
+            elif response.status_code == 429:
+                return None, "Límite de solicitudes excedido"
+            else:
+                if intento < max_reintentos - 1:
+                    continue
+                return None, f"Error {response.status_code}"
+                
+        except requests.exceptions.Timeout:
+            if intento < max_reintentos - 1:
+                continue
+            return None, "Timeout en la solicitud"
+        except requests.exceptions.RequestException as e:
+            return None, f"Error de conexión: {str(e)}"
+    
+    return None, "Error después de múltiples intentos"
+
+# ============================================
+# FUNCIÓN PARA OBTENER PRONÓSTICOS POR HORAS ESPECÍFICAS
+# ============================================
+def obtener_pronosticos_por_horas(forecast_data, horas=[6, 12, 18, 24, 36, 48]):
+    """Obtiene pronósticos para horas específicas (6, 12, 18, 24, 36, 48 horas)"""
+    
+    if not forecast_data or 'list' not in forecast_data:
+        return {}
+    
+    ahora = datetime.now()
+    pronosticos = {}
+    
+    for horas_futuro in horas:
+        fecha_objetivo = ahora + timedelta(hours=horas_futuro)
+        # Buscar el pronóstico más cercano a la hora objetivo
+        pronostico_cercano = None
+        diferencia_minima = float('inf')
+        
+        for item in forecast_data['list']:
+            fecha_item = datetime.strptime(item['dt_txt'], '%Y-%m-%d %H:%M:%S')
+            diferencia = abs((fecha_item - fecha_objetivo).total_seconds())
+            
+            if diferencia < diferencia_minima:
+                diferencia_minima = diferencia
+                pronostico_cercano = item
+        
+        if pronostico_cercano:
+            pronosticos[f"{horas_futuro}h"] = {
+                'fecha': pronostico_cercano['dt_txt'],
+                'temperatura': pronostico_cercano['main']['temp'],
+                'descripcion': pronostico_cercano['weather'][0]['description'],
+                'icono': pronostico_cercano['weather'][0]['icon'],
+                'humedad': pronostico_cercano['main']['humidity'],
+                'viento': pronostico_cercano['wind']['speed'] * 3.6,
+                'probabilidad_lluvia': pronostico_cercano.get('pop', 0) * 100,
+                'lluvia_3h': pronostico_cercano.get('rain', {}).get('3h', 0),
+                'nieve_3h': pronostico_cercano.get('snow', {}).get('3h', 0),
+                'main': pronostico_cercano['weather'][0]['main'].lower(),
+                'description': pronostico_cercano['weather'][0]['description'].lower()
+            }
+    
+    return pronosticos
+
+# ============================================
+# FUNCIÓN PARA ANALIZAR EVENTOS METEOROLÓGICOS
+# ============================================
+def analizar_eventos_meteorologicos(forecast_data):
+    """Analiza el pronóstico para detectar lluvia, tormenta, granizo y nieve"""
+    eventos = {
+        'lluvia': False,
+        'tormenta': False,
+        'granizo': False,
+        'nieve': False,
+        'probabilidad_lluvia_max': 0,
+        'probabilidad_nieve_max': 0,
+        'intensidad_lluvia_max': 0,
+        'horas_lluvia': [],
+        'horas_tormenta': [],
+        'horas_nieve': []
+    }
+    
+    if not forecast_data or 'list' not in forecast_data:
+        return eventos
+    
+    for item in forecast_data['list']:
+        # Verificar condiciones meteorológicas
+        weather_main = item.get('weather', [{}])[0].get('main', '').lower()
+        weather_desc = item.get('weather', [{}])[0].get('description', '').lower()
+        
+        # Detectar lluvia
+        if 'rain' in weather_main or 'lluvia' in weather_desc or 'drizzle' in weather_main:
+            eventos['lluvia'] = True
+            eventos['horas_lluvia'].append(item.get('dt_txt', ''))
+            # Obtener intensidad de lluvia si está disponible
+            if 'rain' in item and '3h' in item['rain']:
+                eventos['intensidad_lluvia_max'] = max(eventos['intensidad_lluvia_max'], item['rain']['3h'])
+        
+        # Detectar tormenta
+        if 'thunderstorm' in weather_main or 'tormenta' in weather_desc:
+            eventos['tormenta'] = True
+            eventos['horas_tormenta'].append(item.get('dt_txt', ''))
+        
+        # Detectar granizo (generalmente viene con tormenta)
+        if 'hail' in weather_desc or 'granizo' in weather_desc:
+            eventos['granizo'] = True
+        
+        # Detectar nieve
+        if 'snow' in weather_main or 'nieve' in weather_desc:
+            eventos['nieve'] = True
+            eventos['horas_nieve'].append(item.get('dt_txt', ''))
+        
+        # Probabilidades de precipitación
+        if 'pop' in item:  # Probability of Precipitation
+            pop = item['pop'] * 100
+            if 'rain' in weather_main or 'lluvia' in weather_desc:
+                eventos['probabilidad_lluvia_max'] = max(eventos['probabilidad_lluvia_max'], pop)
+            if 'snow' in weather_main or 'nieve' in weather_desc:
+                eventos['probabilidad_nieve_max'] = max(eventos['probabilidad_nieve_max'], pop)
+    
+    return eventos
+
+# ============================================
 # OBTENER DATOS DE TODAS LAS CIUDADES
 # ============================================
 obtener_datos = st.sidebar.button("🔍 Obtener Datos Meteorológicos", type="primary", use_container_width=True)
@@ -148,19 +292,31 @@ st.session_state.pais_anterior = pais_seleccionado
 
 if obtener_datos or 'weather_data' not in st.session_state:
     
-    with st.spinner(f"🌍 Obteniendo datos meteorológicos de {pais_seleccionado}..."):
+    with st.spinner(f"🌍 Obteniendo datos meteorológicos y pronósticos de {pais_seleccionado}..."):
         weather_data = []
+        forecast_data_list = []
         errores = []
         progress_bar = st.progress(0)
         status_text = st.empty()
         
         for i, ciudad in enumerate(ciudades):
             status_text.text(f"Consultando: {ciudad}...")
+            
+            # Obtener datos actuales
             data, error = obtener_clima(ciudad, API_KEY)
             if data:
                 weather_data.append(data)
+                
+                # Obtener pronóstico
+                forecast, forecast_error = obtener_pronostico(ciudad, API_KEY)
+                if forecast:
+                    forecast_data_list.append(forecast)
+                else:
+                    forecast_data_list.append(None)
             else:
                 errores.append((ciudad, error))
+                forecast_data_list.append(None)
+            
             progress_bar.progress((i + 1) / len(ciudades))
         
         progress_bar.empty()
@@ -173,6 +329,7 @@ if obtener_datos or 'weather_data' not in st.session_state:
         
         if weather_data:
             st.session_state.weather_data = weather_data
+            st.session_state.forecast_data = forecast_data_list
             st.session_state.errores = errores
             st.success(f"✅ {len(weather_data)} ciudades procesadas correctamente")
         else:
@@ -185,6 +342,16 @@ if 'weather_data' not in st.session_state or not st.session_state.weather_data:
     st.stop()
 
 weather_data = st.session_state.weather_data
+forecast_data_list = st.session_state.get('forecast_data', [])
+
+# Obtener pronósticos por horas específicas para cada ciudad
+pronosticos_por_horas = []
+for i, forecast_data in enumerate(forecast_data_list):
+    if forecast_data:
+        pronosticos = obtener_pronosticos_por_horas(forecast_data, horas=[6, 12, 18, 24, 36, 48])
+        pronosticos_por_horas.append(pronosticos)
+    else:
+        pronosticos_por_horas.append({})
 
 # ============================================
 # CREAR DATAFRAME CON DATOS COMPLETOS
@@ -194,14 +361,46 @@ columnas = [
     'Temperatura (°C)', 'Sensación térmica (°C)', 'Temperatura mínima (°C)',
     'Temperatura máxima (°C)', 'Humedad (%)', 'Presión (hPa)',
     'Viento (km/h)', 'Dirección del viento (°)', 'Visibilidad (km)',
-    'Ícono del clima', 'País'
+    'Ícono del clima', 'País',
+    'Pronóstico Lluvia', 'Pronóstico Tormenta', 'Pronóstico Granizo', 'Pronóstico Nieve',
+    'Prob. Lluvia (%)', 'Prob. Nieve (%)', 'Intensidad Lluvia (mm)'
 ]
 
 datos = []
+eventos_por_ciudad = []
 
-for data in weather_data:
+for i, data in enumerate(weather_data):
     direccion_viento = data.get('wind', {}).get('deg', 'N/A')
     visibilidad = data.get('visibility', 0) / 1000 if data.get('visibility') else 'N/A'
+    
+    # Analizar pronóstico si está disponible
+    eventos = {
+        'lluvia': False,
+        'tormenta': False,
+        'granizo': False,
+        'nieve': False,
+        'probabilidad_lluvia_max': 0,
+        'probabilidad_nieve_max': 0,
+        'intensidad_lluvia_max': 0
+    }
+    
+    if i < len(forecast_data_list) and forecast_data_list[i]:
+        eventos = analizar_eventos_meteorologicos(forecast_data_list[i])
+    
+    eventos_por_ciudad.append(eventos)
+    
+    # Determinar texto de pronóstico
+    pronosticos = []
+    if eventos['lluvia']:
+        pronosticos.append('🌧️ Lluvia')
+    if eventos['tormenta']:
+        pronosticos.append('⛈️ Tormenta')
+    if eventos['granizo']:
+        pronosticos.append('🧊 Granizo')
+    if eventos['nieve']:
+        pronosticos.append('❄️ Nieve')
+    
+    pronostico_texto = ', '.join(pronosticos) if pronosticos else 'Sin eventos'
     
     datos.append([
         data['name'],
@@ -218,7 +417,14 @@ for data in weather_data:
         direccion_viento,
         visibilidad,
         data['weather'][0]['icon'],
-        data['sys']['country']
+        data['sys']['country'],
+        'Sí' if eventos['lluvia'] else 'No',
+        'Sí' if eventos['tormenta'] else 'No',
+        'Sí' if eventos['granizo'] else 'No',
+        'Sí' if eventos['nieve'] else 'No',
+        f"{eventos['probabilidad_lluvia_max']:.0f}%" if eventos['probabilidad_lluvia_max'] > 0 else 'N/A',
+        f"{eventos['probabilidad_nieve_max']:.0f}%" if eventos['probabilidad_nieve_max'] > 0 else 'N/A',
+        f"{eventos['intensidad_lluvia_max']:.2f}" if eventos['intensidad_lluvia_max'] > 0 else 'N/A'
     ])
 
 df = pd.DataFrame(datos, columns=columnas)
@@ -240,6 +446,112 @@ with col4:
     st.metric("💧 Humedad Prom.", f"{df['Humedad (%)'].mean():.1f}%")
 with col5:
     st.metric("💨 Viento Prom.", f"{df['Viento (km/h)'].mean():.1f} km/h")
+
+# ============================================
+# PRONÓSTICOS POR HORAS ESPECÍFICAS
+# ============================================
+st.header("⏰ Pronósticos por Horas (6, 12, 18, 24, 36, 48 horas)")
+
+for idx, row in df.iterrows():
+    ciudad = row['Ciudad']
+    pronosticos = pronosticos_por_horas[idx] if idx < len(pronosticos_por_horas) else {}
+    
+    if pronosticos:
+        with st.expander(f"🌍 {ciudad}", expanded=False):
+            horas = ['6h', '12h', '18h', '24h', '36h', '48h']
+            cols = st.columns(6)
+            
+            for i, hora in enumerate(horas):
+                with cols[i]:
+                    if hora in pronosticos:
+                        p = pronosticos[hora]
+                        
+                        # Determinar emoji según condiciones
+                        emoji = "☀️"
+                        color_bg = "#E8F5E9"  # Verde claro
+                        
+                        if 'thunderstorm' in p['main'] or 'tormenta' in p['description']:
+                            emoji = "⛈️"
+                            color_bg = "#FFEBEE"  # Rojo claro
+                        elif 'rain' in p['main'] or 'lluvia' in p['description'] or p['lluvia_3h'] > 0:
+                            emoji = "🌧️"
+                            color_bg = "#E3F2FD"  # Azul claro
+                        elif 'snow' in p['main'] or 'nieve' in p['description'] or p['nieve_3h'] > 0:
+                            emoji = "❄️"
+                            color_bg = "#E1F5FE"  # Azul muy claro
+                        elif 'hail' in p['description'] or 'granizo' in p['description']:
+                            emoji = "🧊"
+                            color_bg = "#FFF3E0"  # Naranja claro
+                        elif 'cloud' in p['main']:
+                            emoji = "☁️"
+                            color_bg = "#F5F5F5"  # Gris claro
+                        
+                        st.markdown(
+                            f"""
+                            <div style="background-color: {color_bg}; padding: 10px; border-radius: 8px; text-align: center;">
+                                <h4 style="margin: 5px 0;">{hora}</h4>
+                                <p style="font-size: 24px; margin: 5px 0;">{emoji}</p>
+                                <p style="margin: 3px 0; font-weight: bold;">{p['temperatura']:.1f}°C</p>
+                                <p style="margin: 3px 0; font-size: 0.85em;">{p['descripcion'].title()}</p>
+                                <p style="margin: 3px 0; font-size: 0.8em;">💧 {p['humedad']}%</p>
+                                <p style="margin: 3px 0; font-size: 0.8em;">💨 {p['viento']:.1f} km/h</p>
+                                {f"<p style='margin: 3px 0; font-size: 0.8em; color: #1976d2;'>🌧️ {p['probabilidad_lluvia']:.0f}%</p>" if p['probabilidad_lluvia'] > 0 else ""}
+                                {f"<p style='margin: 3px 0; font-size: 0.8em; color: #1976d2;'>💧 {p['lluvia_3h']:.1f}mm</p>" if p['lluvia_3h'] > 0 else ""}
+                                {f"<p style='margin: 3px 0; font-size: 0.8em; color: #64B5F6;'>❄️ {p['nieve_3h']:.1f}mm</p>" if p['nieve_3h'] > 0 else ""}
+                                <p style="margin: 5px 0; font-size: 0.75em; color: #666;">{p['fecha'][:16]}</p>
+                            </div>
+                            """,
+                            unsafe_allow_html=True
+                        )
+                    else:
+                        st.info("N/D")
+    else:
+        with st.expander(f"🌍 {ciudad}", expanded=False):
+            st.warning("No hay datos de pronóstico disponibles para esta ciudad")
+
+# ============================================
+# ALERTAS DE PRONÓSTICO
+# ============================================
+st.header("⚠️ Alertas de Pronóstico (Próximos 5 días)")
+
+ciudades_con_eventos = []
+for i, eventos in enumerate(eventos_por_ciudad):
+    if eventos['lluvia'] or eventos['tormenta'] or eventos['granizo'] or eventos['nieve']:
+        ciudades_con_eventos.append((df.iloc[i]['Ciudad'], eventos))
+
+if ciudades_con_eventos:
+    for ciudad, eventos in ciudades_con_eventos:
+        with st.expander(f"🌍 {ciudad}", expanded=False):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                if eventos['lluvia']:
+                    st.warning(f"🌧️ **Lluvia pronosticada**")
+                    if eventos['probabilidad_lluvia_max'] > 0:
+                        st.write(f"   Probabilidad máxima: {eventos['probabilidad_lluvia_max']:.0f}%")
+                    if eventos['intensidad_lluvia_max'] > 0:
+                        st.write(f"   Intensidad máxima: {eventos['intensidad_lluvia_max']:.2f} mm")
+                    if eventos['horas_lluvia']:
+                        st.write(f"   Horarios: {', '.join(eventos['horas_lluvia'][:3])}...")
+                
+                if eventos['tormenta']:
+                    st.error(f"⛈️ **Tormenta pronosticada**")
+                    if eventos['horas_tormenta']:
+                        st.write(f"   Horarios: {', '.join(eventos['horas_tormenta'][:3])}...")
+            
+            with col2:
+                if eventos['granizo']:
+                    st.error(f"🧊 **Granizo pronosticado**")
+                    st.write("   ⚠️ Precaución: riesgo de granizo")
+                
+                if eventos['nieve']:
+                    st.info(f"❄️ **Nieve pronosticada**")
+                    if eventos['probabilidad_nieve_max'] > 0:
+                        st.write(f"   Probabilidad máxima: {eventos['probabilidad_nieve_max']:.0f}%")
+                    if eventos['horas_nieve']:
+                        st.write(f"   Horarios: {', '.join(eventos['horas_nieve'][:3])}...")
+else:
+    st.success("✅ No se pronostican eventos meteorológicos significativos en las próximas ciudades")
 
 # ============================================
 # TABLA DE DATOS
@@ -271,6 +583,9 @@ marker_cluster = MarkerCluster().add_to(m)
 
 for idx, row in df.iterrows():
     temp = row['Temperatura (°C)']
+    eventos = eventos_por_ciudad[idx]
+    
+    # Determinar color según temperatura
     if temp < 10:
         color = 'blue'
     elif temp < 20:
@@ -280,8 +595,37 @@ for idx, row in df.iterrows():
     else:
         color = 'red'
     
+    # Determinar icono según eventos meteorológicos
+    if eventos['granizo']:
+        icon = 'exclamation-triangle'
+        color = 'red'
+    elif eventos['tormenta']:
+        icon = 'bolt'
+        color = 'purple'
+    elif eventos['nieve']:
+        icon = 'snowflake'
+        color = 'lightblue'
+    elif eventos['lluvia']:
+        icon = 'tint'
+        color = 'blue'
+    else:
+        icon = 'cloud'
+    
+    # Construir texto de pronóstico para el popup
+    pronosticos_popup = []
+    if eventos['lluvia']:
+        pronosticos_popup.append(f"🌧️ Lluvia ({eventos['probabilidad_lluvia_max']:.0f}%)")
+    if eventos['tormenta']:
+        pronosticos_popup.append("⛈️ Tormenta")
+    if eventos['granizo']:
+        pronosticos_popup.append("🧊 Granizo")
+    if eventos['nieve']:
+        pronosticos_popup.append(f"❄️ Nieve ({eventos['probabilidad_nieve_max']:.0f}%)")
+    
+    pronostico_texto = '<br>'.join(pronosticos_popup) if pronosticos_popup else 'Sin eventos pronosticados'
+    
     popup_html = f"""
-    <div style="font-family: Arial; width: 250px;">
+    <div style="font-family: Arial; width: 280px;">
         <h3 style="margin: 5px 0; color: #2c3e50;">{row['Ciudad']}</h3>
         <hr style="margin: 5px 0;">
         <p style="margin: 3px 0;"><b>🌡️ Temperatura:</b> {row['Temperatura (°C)']:.1f}°C</p>
@@ -289,15 +633,24 @@ for idx, row in df.iterrows():
         <p style="margin: 3px 0;"><b>💧 Humedad:</b> {row['Humedad (%)']}%</p>
         <p style="margin: 3px 0;"><b>💨 Viento:</b> {row['Viento (km/h)']:.1f} km/h</p>
         <p style="margin: 3px 0;"><b>📊 Presión:</b> {row['Presión (hPa)']} hPa</p>
-        <p style="margin: 3px 0;"><b>👁️ Visibilidad:</b> {row['Visibilidad (km)']} km</p>
+        <hr style="margin: 8px 0;">
+        <p style="margin: 3px 0;"><b>📅 Pronóstico (5 días):</b></p>
+        <p style="margin: 3px 0; color: {'#d32f2f' if eventos['tormenta'] or eventos['granizo'] else '#1976d2'};">
+            {pronostico_texto}
+        </p>
     </div>
     """
+    
+    # Tooltip con información de pronóstico
+    tooltip_text = f"{row['Ciudad']}: {row['Temperatura (°C)']:.1f}°C"
+    if eventos['lluvia'] or eventos['tormenta'] or eventos['granizo'] or eventos['nieve']:
+        tooltip_text += " ⚠️"
     
     folium.Marker(
         location=[row['Latitud'], row['Longitud']],
         popup=folium.Popup(popup_html, max_width=300),
-        icon=folium.Icon(color=color, icon='cloud', prefix='fa'),
-        tooltip=f"{row['Ciudad']}: {row['Temperatura (°C)']:.1f}°C"
+        icon=folium.Icon(color=color, icon=icon, prefix='fa'),
+        tooltip=tooltip_text
     ).add_to(marker_cluster)
 
 # Mostrar mapa en Streamlit
