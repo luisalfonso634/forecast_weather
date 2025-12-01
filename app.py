@@ -50,7 +50,7 @@ PAISES_CONFIG = {
         "Salta, AR", "Santa Fe, AR", "San Luis, AR"
     ],
     'Venezuela': [
-        "Caracas, VE", "Maracaibo, VE", "Valencia, VE", "Barquisimeto, VE"
+        "Caracas, VE", "Maracaibo, VE", "Valencia, VE", "Barquisimeto, VE", "Maracay, VE", "San Antonio de los Altos, VE"
     ],
     'Colombia': [
         "Bogota, CO", "Medellin, CO", "Cali, CO", "Barranquilla, CO"
