@@ -59,9 +59,7 @@ PAISES_CONFIG = {
         "Santiago, CL", "Valparaiso, CL", "Concepcion, CL", "La Serena, CL"
     ],
     'Uruguay': [
-        "Montevideo, UY", "Salto, UY", "Paysandu, UY", "Las Piedras, UY",
-        "Rivera, UY", "Maldonado, UY", "Tacuarembo, UY", "Melo, UY",
-        "Mercedes, UY", "Artigas, UY"
+        "Colonia, UY", "Montevideo, UY", "Ciudad de la Costa, UY", "Salto, UY"
     ],
     'Paraguay': [
         "Asuncion, PY", "Ciudad del Este, PY", "San Lorenzo, PY", "Luque, PY",
