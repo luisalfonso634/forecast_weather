@@ -28,33 +28,38 @@ st.markdown("---")
 # ============================================
 # CONFIGURACIÓN DE API KEY
 # ============================================
-st.sidebar.header("🔐 Configuración")
-
-# Opción 1: Variable de entorno
-api_key_env = os.getenv('OPENWEATHER_API_KEY')
-
-# Opción 2: Input en sidebar
-api_key_input = st.sidebar.text_input(
-    "API Key de OpenWeatherMap",
-    type="password",
-    help="Ingresa tu API key o configúrala como variable de entorno OPENWEATHER_API_KEY",
-    value=api_key_env if api_key_env else ""
-)
-
-# Determinar qué API key usar
-API_KEY = api_key_input if api_key_input else api_key_env
+# Cargar API Key automáticamente desde variable de entorno
+API_KEY = os.getenv('OPENWEATHER_API_KEY')
 
 if not API_KEY:
     st.error("⚠️ **ERROR: API Key no configurada**")
     st.info(
-        "Por favor configura tu API Key de OpenWeatherMap:\n\n"
-        "**Opción 1:** Ingresa tu API key en el sidebar (izquierda)\n\n"
-        "**Opción 2:** Configura como variable de entorno:\n"
-        "- Windows: `set OPENWEATHER_API_KEY=tu_api_key`\n"
-        "- Linux/Mac: `export OPENWEATHER_API_KEY=tu_api_key`\n\n"
+        "**La API Key debe configurarse como variable de entorno:**\n\n"
+        "**Windows (PowerShell):**\n"
+        "```powershell\n"
+        "$env:OPENWEATHER_API_KEY = 'tu_api_key_aqui'\n"
+        "```\n\n"
+        "**Windows (CMD):**\n"
+        "```cmd\n"
+        "set OPENWEATHER_API_KEY=tu_api_key_aqui\n"
+        "```\n\n"
+        "**Linux/Mac:**\n"
+        "```bash\n"
+        "export OPENWEATHER_API_KEY=tu_api_key_aqui\n"
+        "```\n\n"
+        "**Para hacerlo permanente en Windows:**\n"
+        "1. Presiona `Win + R`, escribe `sysdm.cpl` y presiona Enter\n"
+        "2. Ve a 'Opciones avanzadas' → 'Variables de entorno'\n"
+        "3. En 'Variables del usuario', click en 'Nueva'\n"
+        "4. Nombre: `OPENWEATHER_API_KEY`\n"
+        "5. Valor: Tu API key\n"
+        "6. Reinicia tu terminal/IDE\n\n"
         "Obtén tu API key gratuita en: https://openweathermap.org/api"
     )
     st.stop()
+
+# Mostrar confirmación en sidebar (sin mostrar la key)
+st.sidebar.success("✅ API Key configurada")
 
 # ============================================
 # CONFIGURACIÓN DE CIUDADES
@@ -784,8 +789,8 @@ else:
         pronosticos = pronosticos_por_horas[idx] if idx < len(pronosticos_por_horas) else {}
         
         if pronosticos:
-        with st.expander(f"🌍 {ciudad}", expanded=False):
-            horas = ['6h', '12h', '18h', '24h', '36h', '48h']
+            with st.expander(f"🌍 {ciudad}", expanded=False):
+                horas = ['6h', '12h', '18h', '24h', '36h', '48h']
             cols = st.columns(6)
             
             for i, hora in enumerate(horas):
